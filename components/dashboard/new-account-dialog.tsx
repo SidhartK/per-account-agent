@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import { AVAILABLE_MODELS } from "@/lib/models";
+import { AVAILABLE_MODELS } from "@/lib/llm/provider";
 
 export function NewAccountDialog() {
   const [open, setOpen] = useState(false);
