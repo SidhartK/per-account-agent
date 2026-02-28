@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountStatus {
+  initializing
+  active
+  archived
+}
+
+enum LlmProvider {
+  openai
+  anthropic
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+model Account {
+  id                   String        @id @default(uuid())
+  name                 String
+  status               AccountStatus @default(initializing)
+  llmProvider          LlmProvider   @default(openai)
+  llmModel             String        @default("gpt-4o")
+  systemPrompt         String?       @db.Text
+  stateSummary         String?       @db.Text
+  reminderIntervalDays Int?
+  lastReminderAt       DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  messages Message[]
+
+  @@index([status])
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  accountId String
+  role      MessageRole
+  content   String      @db.Text
+  createdAt DateTime    @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+}
