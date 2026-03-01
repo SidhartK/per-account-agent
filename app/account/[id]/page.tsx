@@ -66,8 +66,11 @@ export default function AccountChatPage({
   }, [id, setMessages]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const viewport = scrollRef.current?.querySelector(
+      "[data-slot='scroll-area-viewport']"
+    );
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
     }
   }, [messages]);
 
