@@ -152,14 +152,14 @@ export default function AccountChatPage({
   const isInitializing = account.status === "initializing";
 
   return (
-    <div className="flex h-screen">
-      <div className="flex flex-col flex-1 min-w-0">
+    <div className="flex h-screen overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 h-full">
         <AccountHeader
           account={account}
           onAccountUpdate={(a) => setAccount({ ...account, ...a })}
         />
 
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <ScrollArea className="flex-1 min-h-0 p-4" ref={scrollRef}>
           <div className="max-w-3xl mx-auto space-y-4 pb-4">
             {messages.length === 0 && isInitializing && (
               <div className="text-center py-10 space-y-3">
