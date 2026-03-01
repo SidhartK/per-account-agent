@@ -26,19 +26,18 @@ enum MessageRole {
 }
 
 model Account {
-  id                   String        @id @default(uuid())
-  name                 String
-  status               AccountStatus @default(initializing)
-  llmProvider          LlmProvider   @default(openai)
-  llmModel             String        @default("gpt-4o")
-  systemPrompt         String?       @db.Text
-  stateSummary         String?       @db.Text
-  reminderIntervalDays Int?
-  lastReminderAt       DateTime?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  id           String        @id @default(uuid())
+  name         String
+  status       AccountStatus @default(initializing)
+  llmProvider  LlmProvider   @default(openai)
+  llmModel     String        @default("gpt-4o")
+  systemPrompt String?       @db.Text
+  stateSummary String?       @db.Text
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
-  messages Message[]
+  messages   Message[]
+  dailyTasks DailyTask[]
 
   @@index([status])
 }
@@ -53,4 +52,20 @@ model Message {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId, createdAt])
+}
+
+model DailyTask {
+  id        String   @id @default(uuid())
+  date      DateTime @db.Date
+  accountId String
+  content   String   @db.Text
+  rationale String?  @db.Text
+  sortOrder Int      @default(0)
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+  @@index([accountId, date])
 }

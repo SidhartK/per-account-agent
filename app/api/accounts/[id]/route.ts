@@ -36,7 +36,6 @@ export async function PATCH(
     "llmModel",
     "systemPrompt",
     "stateSummary",
-    "reminderIntervalDays",
   ];
 
   const data: Record<string, unknown> = {};

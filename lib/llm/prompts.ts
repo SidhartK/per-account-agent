@@ -90,3 +90,52 @@ For each suggested action:
 
 Prioritize actions by impact. Focus on what would move the needle most for this account's goals. Be concise and practical.`;
 }
+
+export function buildDailyTasksPrompt(stateSummary: string | null): string {
+  if (!stateSummary) {
+    return "This account has no state summary yet. Return an empty tasks array.";
+  }
+
+  return `You are a daily planning assistant. Based on the current state of this account, brainstorm a list of 3-7 concrete tasks the user could work on today.
+
+## Current Account State
+
+${stateSummary}
+
+## Instructions
+
+For each task:
+- "content": A specific, actionable task (1 sentence)
+- "rationale": Why this matters right now (1 sentence)
+
+Order by your best guess at impact. Be practical — these should be things achievable in a single day.`;
+}
+
+export function buildEndOfDayPrompt(
+  completedTasks: string[],
+  skippedTasks: string[],
+  progressNote: string,
+  stateSummary: string | null
+): string {
+  return `The user is doing their end-of-day review for this account.
+
+## Current State
+${stateSummary ?? "No state summary yet."}
+
+## Today's Results
+Completed:
+${completedTasks.length > 0 ? completedTasks.map((t) => `- ${t}`).join("\n") : "None"}
+
+Not done:
+${skippedTasks.length > 0 ? skippedTasks.map((t) => `- ${t}`).join("\n") : "None"}
+
+## User's Progress Note
+${progressNote || "No note provided."}
+
+## Instructions
+1. Acknowledge what was accomplished
+2. Ask 1-2 targeted follow-up questions about anything unclear or that would help you plan better tomorrow
+3. Note any implications for the account's goals or timeline
+
+Be concise.`;
+}

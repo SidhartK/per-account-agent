@@ -53,11 +53,6 @@ export function AccountCard({ account }: { account: AccountWithMessages }) {
           <p className="text-sm text-muted-foreground line-clamp-3">
             {summarySnippet}
           </p>
-          {account.reminderIntervalDays && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Reminder every {account.reminderIntervalDays}d
-            </p>
-          )}
         </CardContent>
       </Card>
     </Link>

@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { AccountCard } from "@/components/dashboard/account-card";
 import { NewAccountDialog } from "@/components/dashboard/new-account-dialog";
+import { ClipboardList } from "lucide-react";
 import type { AccountWithMessages } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -33,7 +36,15 @@ export default function DashboardPage() {
               Manage your accounts, each with its own AI agent
             </p>
           </div>
-          <NewAccountDialog />
+          <div className="flex items-center gap-2">
+            <Link href="/review">
+              <Button variant="outline" size="sm">
+                <ClipboardList className="mr-1 h-4 w-4" />
+                Daily Review
+              </Button>
+            </Link>
+            <NewAccountDialog />
+          </div>
         </div>
       </header>
 

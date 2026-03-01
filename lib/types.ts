@@ -10,8 +10,6 @@ export interface Account {
   llmModel: string;
   systemPrompt: string | null;
   stateSummary: string | null;
-  reminderIntervalDays: number | null;
-  lastReminderAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -37,7 +35,21 @@ export interface UpdateAccountInput {
   llmModel?: string;
   systemPrompt?: string;
   stateSummary?: string;
-  reminderIntervalDays?: number | null;
+}
+
+export interface DailyTask {
+  id: string;
+  date: string;
+  accountId: string;
+  content: string;
+  rationale: string | null;
+  sortOrder: number;
+  completed: boolean;
+  createdAt: string;
+}
+
+export interface DailyTaskWithAccount extends DailyTask {
+  account: { id: string; name: string };
 }
 
 export interface AccountWithMessages extends Account {

@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -23,10 +21,6 @@ interface AccountHeaderProps {
 }
 
 export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [reminderDays, setReminderDays] = useState<string>(
-    account.reminderIntervalDays?.toString() || ""
-  );
   const router = useRouter();
 
   async function handleArchiveToggle() {
@@ -40,20 +34,6 @@ export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) 
       const updated = await res.json();
       onAccountUpdate(updated);
       if (newStatus === "archived") router.push("/");
-    }
-  }
-
-  async function handleSaveSettings() {
-    const interval = reminderDays ? parseInt(reminderDays, 10) : null;
-    const res = await fetch(`/api/accounts/${account.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reminderIntervalDays: interval }),
-    });
-    if (res.ok) {
-      const updated = await res.json();
-      onAccountUpdate(updated);
-      setSettingsOpen(false);
     }
   }
 
@@ -105,7 +85,7 @@ export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) 
             </Button>
           )}
 
-          <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <Dialog>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon">
                 <Settings className="h-4 w-4" />
@@ -122,23 +102,6 @@ export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) 
                     {account.llmProvider} / {account.llmModel}
                   </p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reminder">Reminder Interval (days)</Label>
-                  <Input
-                    id="reminder"
-                    type="number"
-                    min="1"
-                    placeholder="e.g., 5 (leave empty to disable)"
-                    value={reminderDays}
-                    onChange={(e) => setReminderDays(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    The agent will suggest next actions at this interval.
-                  </p>
-                </div>
-                <Button onClick={handleSaveSettings} className="w-full">
-                  Save Settings
-                </Button>
               </div>
             </DialogContent>
           </Dialog>

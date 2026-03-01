@@ -1,58 +1,66 @@
 import { NextResponse } from "next/server";
-import { generateText } from "ai";
+import { generateObject } from "ai";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getModel } from "@/lib/llm/provider";
-import { buildNextActionsPrompt } from "@/lib/llm/prompts";
+import { buildDailyTasksPrompt } from "@/lib/llm/prompts";
+
+const DailyTasksSchema = z.object({
+  tasks: z.array(
+    z.object({
+      content: z.string(),
+      rationale: z.string(),
+    })
+  ),
+});
 
 export async function GET() {
-  const now = new Date();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   const accounts = await prisma.account.findMany({
-    where: {
-      status: "active",
-      reminderIntervalDays: { not: null },
-    },
+    where: { status: "active" },
   });
 
-  const results: { accountId: string; triggered: boolean; error?: string }[] = [];
+  const results: { accountId: string; tasksCreated: number; skipped?: boolean; error?: string }[] = [];
 
   for (const account of accounts) {
-    if (!account.reminderIntervalDays) continue;
+    const existing = await prisma.dailyTask.count({
+      where: { accountId: account.id, date: today },
+    });
 
-    const intervalMs = account.reminderIntervalDays * 24 * 60 * 60 * 1000;
-    const lastReminder = account.lastReminderAt || account.createdAt;
-    const nextDue = new Date(lastReminder.getTime() + intervalMs);
-
-    if (now < nextDue) {
-      results.push({ accountId: account.id, triggered: false });
+    if (existing > 0) {
+      results.push({ accountId: account.id, tasksCreated: 0, skipped: true });
       continue;
     }
 
     try {
-      const prompt = buildNextActionsPrompt(account.stateSummary);
+      const prompt = buildDailyTasksPrompt(account.stateSummary);
 
-      const { text } = await generateText({
+      const { object } = await generateObject({
         model: getModel(account.llmProvider, account.llmModel),
+        schema: DailyTasksSchema,
         prompt,
       });
 
-      await prisma.message.create({
-        data: {
-          accountId: account.id,
-          role: "assistant",
-          content: `**Scheduled Reminder — Suggested Next Actions**\n\n${text}`,
-        },
-      });
+      const tasks = object.tasks;
 
-      await prisma.account.update({
-        where: { id: account.id },
-        data: { lastReminderAt: now },
-      });
+      if (tasks.length > 0) {
+        await prisma.dailyTask.createMany({
+          data: tasks.map((task, index) => ({
+            date: today,
+            accountId: account.id,
+            content: task.content,
+            rationale: task.rationale,
+            sortOrder: index,
+          })),
+        });
+      }
 
-      results.push({ accountId: account.id, triggered: true });
+      results.push({ accountId: account.id, tasksCreated: tasks.length });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error";
-      results.push({ accountId: account.id, triggered: false, error: errorMessage });
+      results.push({ accountId: account.id, tasksCreated: 0, error: errorMessage });
     }
   }
 
