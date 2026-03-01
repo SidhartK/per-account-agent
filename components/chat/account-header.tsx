@@ -55,11 +55,6 @@ export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) 
                 {statusLabel}
               </Badge>
             </div>
-            {account.stateSummary && (
-              <p className="text-xs text-muted-foreground line-clamp-1 max-w-md">
-                {account.stateSummary.slice(0, 100)}...
-              </p>
-            )}
           </div>
         </div>
 
