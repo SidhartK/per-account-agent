@@ -23,6 +23,10 @@ export default function DashboardPage() {
       .catch(() => setLoading(false));
   }, []);
 
+  const handleDeleteAccount = (id: string) => {
+    setAccounts((prev) => prev.filter((a) => a.id !== id));
+  };
+
   const activeAccounts = accounts.filter((a) => a.status === "active" || a.status === "initializing");
   const pausedAccounts = accounts.filter((a) => a.status === "paused");
   const archivedAccounts = accounts.filter((a) => a.status === "archived");
@@ -87,7 +91,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {activeAccounts.map((account) => (
-                    <AccountCard key={account.id} account={account} />
+                    <AccountCard key={account.id} account={account} onDelete={handleDeleteAccount} />
                   ))}
                 </div>
               )}
@@ -100,7 +104,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {pausedAccounts.map((account) => (
-                    <AccountCard key={account.id} account={account} />
+                    <AccountCard key={account.id} account={account} onDelete={handleDeleteAccount} />
                   ))}
                 </div>
               )}
@@ -113,7 +117,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {archivedAccounts.map((account) => (
-                    <AccountCard key={account.id} account={account} />
+                    <AccountCard key={account.id} account={account} onDelete={handleDeleteAccount} />
                   ))}
                 </div>
               )}
