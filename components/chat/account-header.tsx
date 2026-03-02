@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Settings, Archive, ArchiveRestore } from "lucide-react";
+import { ArrowLeft, Settings, Archive, ArchiveRestore, Pause, Play } from "lucide-react";
 import Link from "next/link";
 import type { Account } from "@/lib/types";
 
@@ -37,7 +37,26 @@ export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) 
     }
   }
 
-  const statusLabel = account.status === "initializing" ? "Setting up" : account.status;
+  async function handlePauseToggle() {
+    const newStatus = account.status === "paused" ? "active" : "paused";
+    const res = await fetch(`/api/accounts/${account.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      onAccountUpdate(updated);
+    }
+  }
+
+  const statusLabels: Record<string, string> = {
+    initializing: "Setting up",
+    active: "Active",
+    paused: "Paused",
+    archived: "Archived",
+  };
+  const statusLabel = statusLabels[account.status] ?? account.status;
 
   return (
     <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -60,6 +79,26 @@ export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) 
 
         <div className="flex items-center gap-1">
           {account.status === "active" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handlePauseToggle}
+              title="Pause account"
+            >
+              <Pause className="h-4 w-4" />
+            </Button>
+          )}
+          {account.status === "paused" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handlePauseToggle}
+              title="Resume account"
+            >
+              <Play className="h-4 w-4" />
+            </Button>
+          )}
+          {(account.status === "active" || account.status === "paused") && (
             <Button
               variant="ghost"
               size="icon"

@@ -14,7 +14,7 @@ export async function POST(
     where: { id },
   });
 
-  if (!account || account.status !== "active") {
+  if (!account || (account.status !== "active" && account.status !== "paused")) {
     return NextResponse.json(
       { error: "Account not found or not active" },
       { status: 404 }

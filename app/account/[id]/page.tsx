@@ -204,7 +204,7 @@ export default function AccountChatPage({
 
         <div className="border-t bg-background p-4">
           <div className="max-w-3xl mx-auto">
-            {account.status === "active" && (
+            {(account.status === "active" || account.status === "paused") && (
               <div className="flex gap-2 mb-3">
                 <Button
                   variant="outline"

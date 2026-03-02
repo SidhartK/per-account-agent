@@ -1,4 +1,4 @@
-export type AccountStatus = "initializing" | "active" | "archived";
+export type AccountStatus = "initializing" | "active" | "paused" | "archived";
 export type LlmProvider = "openai" | "anthropic";
 export type MessageRole = "user" | "assistant" | "system";
 
