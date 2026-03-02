@@ -9,7 +9,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { AccountHeader } from "@/components/chat/account-header";
 import { AccountSidebar } from "@/components/chat/account-sidebar";
-import { Lightbulb, Send } from "lucide-react";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { Lightbulb, Send, MessageSquare, FileText } from "lucide-react";
 import type { Account, AccountWithMessages } from "@/lib/types";
 import type { UIMessage } from "ai";
 
@@ -31,6 +32,8 @@ export default function AccountChatPage({
   const [actionsLoading, setActionsLoading] = useState(false);
   const [summaryRefreshing, setSummaryRefreshing] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [activeView, setActiveView] = useState<"chat" | "summary">("chat");
+  const isMobile = useMediaQuery("(max-width: 767px)");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -154,6 +157,94 @@ export default function AccountChatPage({
 
   const isInitializing = account.status === "initializing";
 
+  const showSidebar = !isInitializing;
+  const showMobileToggle = isMobile && showSidebar;
+
+  const chatPanel = (
+    <>
+      <ScrollArea className="flex-1 min-h-0 p-4" ref={scrollRef}>
+        <div className="max-w-3xl mx-auto space-y-4 pb-4">
+          {messages.length === 0 && isInitializing && (
+            <div className="text-center py-10 space-y-3">
+              <h2 className="text-lg font-semibold">
+                Let&apos;s set up this account
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                Start by telling the agent what this account is about. It will
+                ask you questions to understand the context, then create a
+                tailored setup.
+              </p>
+            </div>
+          )}
+          {messages.length === 0 && !isInitializing && (
+            <div className="text-center py-10 space-y-3">
+              <h2 className="text-lg font-semibold">Ready to chat</h2>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                Provide updates, ask questions, or request next actions for this
+                account.
+              </p>
+            </div>
+          )}
+          {messages.map((m) => (
+            <ChatMessage
+              key={m.id}
+              role={m.role as "user" | "assistant" | "system"}
+              content={getTextContent(m)}
+            />
+          ))}
+          {isStreaming && messages.length > 0 && getTextContent(messages[messages.length - 1]) === "" && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3 text-sm text-muted-foreground">
+                Thinking...
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      <div className="border-t bg-background p-4">
+        <div className="max-w-3xl mx-auto">
+          {(account.status === "active" || account.status === "paused") && (
+            <div className="flex gap-2 mb-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGetActions}
+                disabled={actionsLoading}
+              >
+                <Lightbulb className="mr-1 h-3 w-3" />
+                {actionsLoading ? "Generating..." : "Suggest Next Actions"}
+              </Button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Textarea
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder={
+                isInitializing
+                  ? "Describe what this account is about..."
+                  : "Type an update or question..."
+              }
+              className="min-h-[44px] max-h-[200px] resize-none"
+              rows={1}
+            />
+            <Button
+              type="button"
+              size="icon"
+              disabled={!inputValue.trim() || isStreaming}
+              onClick={handleSend}
+              className="shrink-0"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-screen overflow-hidden">
       <div className="flex flex-col flex-1 min-w-0 h-full">
@@ -162,94 +253,53 @@ export default function AccountChatPage({
           onAccountUpdate={(a) => setAccount({ ...account, ...a })}
         />
 
-        <ScrollArea className="flex-1 min-h-0 p-4" ref={scrollRef}>
-          <div className="max-w-3xl mx-auto space-y-4 pb-4">
-            {messages.length === 0 && isInitializing && (
-              <div className="text-center py-10 space-y-3">
-                <h2 className="text-lg font-semibold">
-                  Let&apos;s set up this account
-                </h2>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Start by telling the agent what this account is about. It will
-                  ask you questions to understand the context, then create a
-                  tailored setup.
-                </p>
-              </div>
-            )}
-            {messages.length === 0 && !isInitializing && (
-              <div className="text-center py-10 space-y-3">
-                <h2 className="text-lg font-semibold">Ready to chat</h2>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Provide updates, ask questions, or request next actions for this
-                  account.
-                </p>
-              </div>
-            )}
-            {messages.map((m) => (
-              <ChatMessage
-                key={m.id}
-                role={m.role as "user" | "assistant" | "system"}
-                content={getTextContent(m)}
-              />
-            ))}
-            {isStreaming && messages.length > 0 && getTextContent(messages[messages.length - 1]) === "" && (
-              <div className="flex justify-start">
-                <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3 text-sm text-muted-foreground">
-                  Thinking...
-                </div>
-              </div>
-            )}
+        {showMobileToggle && (
+          <div className="flex border-b bg-muted/30 px-4 py-1.5 gap-1">
+            <Button
+              variant={activeView === "chat" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setActiveView("chat")}
+              className="flex-1"
+            >
+              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+              Chat
+            </Button>
+            <Button
+              variant={activeView === "summary" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setActiveView("summary")}
+              className="flex-1"
+            >
+              <FileText className="mr-1.5 h-3.5 w-3.5" />
+              Summary
+            </Button>
           </div>
-        </ScrollArea>
+        )}
 
-        <div className="border-t bg-background p-4">
-          <div className="max-w-3xl mx-auto">
-            {(account.status === "active" || account.status === "paused") && (
-              <div className="flex gap-2 mb-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGetActions}
-                  disabled={actionsLoading}
-                >
-                  <Lightbulb className="mr-1 h-3 w-3" />
-                  {actionsLoading ? "Generating..." : "Suggest Next Actions"}
-                </Button>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Textarea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={onKeyDown}
-                placeholder={
-                  isInitializing
-                    ? "Describe what this account is about..."
-                    : "Type an update or question..."
-                }
-                className="min-h-[44px] max-h-[200px] resize-none"
-                rows={1}
-              />
-              <Button
-                type="button"
-                size="icon"
-                disabled={!inputValue.trim() || isStreaming}
-                onClick={handleSend}
-                className="shrink-0"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        {isMobile ? (
+          activeView === "chat" || !showSidebar ? (
+            chatPanel
+          ) : (
+            <AccountSidebar
+              account={account}
+              refreshing={summaryRefreshing}
+              onRefreshSummary={handleRefreshSummary}
+              onSaveSummary={handleSaveSummary}
+              className="w-full flex-1 min-h-0"
+            />
+          )
+        ) : (
+          chatPanel
+        )}
       </div>
 
-      {!isInitializing && (
+      {!isMobile && showSidebar && (
         <AccountSidebar
           account={account}
           refreshing={summaryRefreshing}
           onRefreshSummary={handleRefreshSummary}
           onSaveSummary={handleSaveSummary}
+          className="w-80 border-l"
         />
       )}
     </div>

@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { RefreshCw, Pencil, Save, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Account } from "@/lib/types";
 
 interface AccountSidebarProps {
@@ -20,6 +21,7 @@ interface AccountSidebarProps {
   refreshing: boolean;
   onRefreshSummary: () => void;
   onSaveSummary: (text: string) => Promise<void>;
+  className?: string;
 }
 
 export function AccountSidebar({
@@ -27,6 +29,7 @@ export function AccountSidebar({
   refreshing,
   onRefreshSummary,
   onSaveSummary,
+  className,
 }: AccountSidebarProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(account.stateSummary ?? "");
@@ -61,7 +64,7 @@ export function AccountSidebar({
 
   return (
     <>
-      <div className="w-80 border-l flex flex-col h-full bg-muted/30">
+      <div className={cn("flex flex-col h-full bg-muted/30", className)}>
         <div className="px-4 py-3 border-b flex items-center justify-between shrink-0">
           <h2 className="text-sm font-semibold">Account Summary</h2>
           <Button
