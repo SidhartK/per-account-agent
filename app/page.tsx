@@ -23,7 +23,8 @@ export default function DashboardPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  const activeAccounts = accounts.filter((a) => a.status !== "archived");
+  const activeAccounts = accounts.filter((a) => a.status === "active" || a.status === "initializing");
+  const pausedAccounts = accounts.filter((a) => a.status === "paused");
   const archivedAccounts = accounts.filter((a) => a.status === "archived");
 
   return (
@@ -71,6 +72,9 @@ export default function DashboardPage() {
               <TabsTrigger value="active">
                 Active ({activeAccounts.length})
               </TabsTrigger>
+              <TabsTrigger value="paused">
+                Paused ({pausedAccounts.length})
+              </TabsTrigger>
               <TabsTrigger value="archived">
                 Archived ({archivedAccounts.length})
               </TabsTrigger>
@@ -83,6 +87,19 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {activeAccounts.map((account) => (
+                    <AccountCard key={account.id} account={account} />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+            <TabsContent value="paused" className="mt-6">
+              {pausedAccounts.length === 0 ? (
+                <p className="text-muted-foreground text-center py-10">
+                  No paused accounts.
+                </p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {pausedAccounts.map((account) => (
                     <AccountCard key={account.id} account={account} />
                   ))}
                 </div>
