@@ -3,6 +3,7 @@ import { generateText } from "ai";
 import { prisma } from "@/lib/db";
 import { getModel } from "@/lib/llm/provider";
 import { buildNextActionsPrompt } from "@/lib/llm/prompts";
+import { refreshStaleSummary } from "@/lib/llm/summary";
 
 export async function POST(
   _request: Request,
@@ -17,6 +18,8 @@ export async function POST(
   if (!account) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
+
+  account.stateSummary = await refreshStaleSummary(account);
 
   const prompt = buildNextActionsPrompt(account.stateSummary);
 

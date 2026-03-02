@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getModel } from "@/lib/llm/provider";
 import { buildDailyTasksPrompt } from "@/lib/llm/prompts";
+import { refreshStaleSummary } from "@/lib/llm/summary";
 
 const DailyTasksSchema = z.object({
   tasks: z.array(
@@ -35,6 +36,8 @@ export async function GET() {
     }
 
     try {
+      account.stateSummary = await refreshStaleSummary(account);
+
       const prompt = buildDailyTasksPrompt(account.stateSummary);
 
       const { object } = await generateObject({
