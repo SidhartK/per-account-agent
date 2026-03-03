@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   DndContext,
   closestCenter,
@@ -20,6 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { SortableTaskItem } from "@/components/review/sortable-task-item";
 import { EndOfDaySection } from "@/components/review/end-of-day-section";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import type { DailyTaskWithAccount } from "@/lib/types";
@@ -28,6 +30,10 @@ export default function ReviewPage() {
   const [tasks, setTasks] = useState<DailyTaskWithAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [focusedAccountIds, setFocusedAccountIds] = useState<Set<string>>(
+    new Set()
+  );
+  const initializedRef = useRef(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -96,7 +102,48 @@ export default function ReviewPage() {
     []
   );
 
-  const accountGroups = tasks.reduce<
+  useEffect(() => {
+    if (tasks.length > 0 && !initializedRef.current) {
+      initializedRef.current = true;
+      setFocusedAccountIds(new Set(tasks.map((t) => t.accountId)));
+    }
+  }, [tasks]);
+
+  const uniqueAccounts = useMemo(() => {
+    const map = new Map<string, string>();
+    tasks.forEach((t) => {
+      if (!map.has(t.accountId)) map.set(t.accountId, t.account.name);
+    });
+    return Array.from(map, ([id, name]) => ({ id, name }));
+  }, [tasks]);
+
+  const allSelected =
+    uniqueAccounts.length > 0 &&
+    uniqueAccounts.every((a) => focusedAccountIds.has(a.id));
+
+  const toggleAccount = useCallback((accountId: string) => {
+    setFocusedAccountIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(accountId)) next.delete(accountId);
+      else next.add(accountId);
+      return next;
+    });
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setFocusedAccountIds((prev) => {
+      const allIds = new Set(uniqueAccounts.map((a) => a.id));
+      const everySelected = uniqueAccounts.every((a) => prev.has(a.id));
+      return everySelected ? new Set<string>() : allIds;
+    });
+  }, [uniqueAccounts]);
+
+  const filteredTasks = useMemo(
+    () => tasks.filter((t) => focusedAccountIds.has(t.accountId)),
+    [tasks, focusedAccountIds]
+  );
+
+  const accountGroups = filteredTasks.reduce<
     Record<string, { name: string; tasks: DailyTaskWithAccount[] }>
   >((acc, task) => {
     if (!acc[task.accountId]) {
@@ -174,6 +221,43 @@ export default function ReviewPage() {
             </Button>
           </div>
         ) : (
+          <>
+          {uniqueAccounts.length > 1 && (
+            <div className="mb-6 rounded-lg border p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium">Focus Accounts</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto py-1 px-2 text-xs"
+                  onClick={toggleAll}
+                >
+                  {allSelected ? "Deselect All" : "Select All"}
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {uniqueAccounts.map((account) => (
+                  <div
+                    key={account.id}
+                    className="flex items-center gap-2"
+                  >
+                    <Checkbox
+                      id={`focus-${account.id}`}
+                      checked={focusedAccountIds.has(account.id)}
+                      onCheckedChange={() => toggleAccount(account.id)}
+                    />
+                    <Label
+                      htmlFor={`focus-${account.id}`}
+                      className="text-sm cursor-pointer"
+                    >
+                      {account.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <Tabs defaultValue="morning">
             <TabsList className="mb-6">
               <TabsTrigger value="morning">Morning</TabsTrigger>
@@ -191,11 +275,11 @@ export default function ReviewPage() {
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={tasks.map((t) => t.id)}
+                  items={filteredTasks.map((t) => t.id)}
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="space-y-2">
-                    {tasks.map((task) => (
+                    {filteredTasks.map((task) => (
                       <SortableTaskItem key={task.id} task={task} />
                     ))}
                   </div>
@@ -222,6 +306,7 @@ export default function ReviewPage() {
               </div>
             </TabsContent>
           </Tabs>
+          </>
         )}
       </main>
     </div>
