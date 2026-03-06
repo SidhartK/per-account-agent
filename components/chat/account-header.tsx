@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,9 +12,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ArrowLeft, Settings, Archive, ArchiveRestore, Pause, Play } from "lucide-react";
 import Link from "next/link";
+import { AVAILABLE_MODELS } from "@/lib/llm/provider";
 import type { Account } from "@/lib/types";
+import type { LlmProvider } from "@/lib/types";
 
 interface AccountHeaderProps {
   account: Account;
@@ -22,6 +32,39 @@ interface AccountHeaderProps {
 
 export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) {
   const router = useRouter();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [provider, setProvider] = useState<LlmProvider>(account.llmProvider);
+  const [model, setModel] = useState(account.llmModel);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (settingsOpen && account) {
+      const models = AVAILABLE_MODELS[account.llmProvider];
+      const validModel = models.includes(account.llmModel) ? account.llmModel : models[0];
+      setProvider(account.llmProvider);
+      setModel(validModel);
+    }
+  }, [settingsOpen, account?.llmProvider, account?.llmModel]);
+
+  function handleProviderChange(value: LlmProvider) {
+    setProvider(value);
+    setModel(AVAILABLE_MODELS[value][0]);
+  }
+
+  async function handleSaveLlm() {
+    setSaving(true);
+    const res = await fetch(`/api/accounts/${account.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ llmProvider: provider, llmModel: model }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      onAccountUpdate(updated);
+      setSettingsOpen(false);
+    }
+    setSaving(false);
+  }
 
   async function handleArchiveToggle() {
     const newStatus = account.status === "archived" ? "active" : "archived";
@@ -119,7 +162,7 @@ export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) 
             </Button>
           )}
 
-          <Dialog>
+          <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon">
                 <Settings className="h-4 w-4" />
@@ -131,11 +174,35 @@ export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) 
               </DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
-                  <Label>Provider</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {account.llmProvider} / {account.llmModel}
-                  </p>
+                  <Label>LLM Provider</Label>
+                  <Select value={provider} onValueChange={handleProviderChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="openai">OpenAI</SelectItem>
+                      <SelectItem value="anthropic">Anthropic</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Model</Label>
+                  <Select value={model} onValueChange={setModel}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AVAILABLE_MODELS[provider].map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleSaveLlm} className="w-full" disabled={saving}>
+                  {saving ? "Saving..." : "Save"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
