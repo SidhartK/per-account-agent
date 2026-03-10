@@ -7,9 +7,18 @@ interface ChatMessageProps {
   content: string;
 }
 
+function stripAccountReadyBlock(text: string): string {
+  const marker = "---ACCOUNT_READY---";
+  if (!text.includes(marker)) return text;
+  return text
+    .replace(/---ACCOUNT_READY---[\s\S]*?(---END_ACCOUNT_READY---|$)/g, "")
+    .trim();
+}
+
 export function ChatMessage({ role, content }: ChatMessageProps) {
   const isUser = role === "user";
   const isSystem = role === "system";
+  const displayContent = stripAccountReadyBlock(content);
 
   return (
     <div
@@ -28,7 +37,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
               : "bg-muted text-foreground rounded-bl-md"
         )}
       >
-        {formatContent(content)}
+        {formatContent(displayContent)}
       </div>
     </div>
   );

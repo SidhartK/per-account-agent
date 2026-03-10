@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, use } from "react";
+import { useCallback, useEffect, useRef, useState, use } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,11 @@ export default function AccountChatPage({
   const [summaryRefreshing, setSummaryRefreshing] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [activeView, setActiveView] = useState<"chat" | "summary">("chat");
+  const [showActivationBanner, setShowActivationBanner] = useState(false);
   const isMobile = useMediaQuery("(max-width: 767px)");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prevAccountStatusRef = useRef<Account["status"] | null>(null);
+  const prevChatStatusRef = useRef<string | null>(null);
 
   const {
     messages,
@@ -49,12 +52,32 @@ export default function AccountChatPage({
   });
 
   const isStreaming = status === "streaming" || status === "submitted";
+  const showInitializingProgress =
+    !showActivationBanner && account?.status === "initializing" && isStreaming;
+
+  const refreshAccount = useCallback(async (): Promise<AccountWithMessages | null> => {
+    const res = await fetch(`/api/accounts/${id}`);
+    if (!res.ok) return null;
+    const updated = (await res.json()) as AccountWithMessages;
+    setAccount(updated);
+    return updated;
+  }, [id]);
+
+  const maybeTriggerActivationBanner = useCallback(
+    (prevStatus: Account["status"] | null, nextStatus: Account["status"]) => {
+    if (prevStatus === "initializing" && nextStatus === "active") {
+      setShowActivationBanner(true);
+    }
+    },
+    []
+  );
 
   useEffect(() => {
     fetch(`/api/accounts/${id}`)
       .then((res) => res.json())
       .then((data: AccountWithMessages) => {
         setAccount(data);
+        prevAccountStatusRef.current = data.status;
         if (data.messages.length > 0) {
           const uiMessages: UIMessage[] = data.messages.map((m) => ({
             id: m.id,
@@ -67,6 +90,63 @@ export default function AccountChatPage({
       })
       .catch(() => setPageLoading(false));
   }, [id, setMessages]);
+
+  // While initializing, re-fetch once after each streamed assistant response finishes.
+  useEffect(() => {
+    if (!account || account.status !== "initializing") return;
+    const prev = prevChatStatusRef.current;
+    prevChatStatusRef.current = status;
+    if (!prev) return;
+
+    const wasStreaming = prev === "streaming" || prev === "submitted";
+    const nowStreaming = status === "streaming" || status === "submitted";
+    if (wasStreaming && !nowStreaming) {
+      refreshAccount().then((updated) => {
+        if (!updated) return;
+        maybeTriggerActivationBanner(prevAccountStatusRef.current, updated.status);
+        prevAccountStatusRef.current = updated.status;
+      });
+    }
+  }, [status, account, refreshAccount, maybeTriggerActivationBanner]);
+
+  // Safety net polling while initializing (covers cases where status flips without a chat status transition).
+  useEffect(() => {
+    if (!account || account.status !== "initializing") return;
+
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const startedAt = Date.now();
+    const poll = async (delayMs: number) => {
+      timeout = setTimeout(async () => {
+        if (cancelled) return;
+        const updated = await refreshAccount();
+        if (cancelled || !updated) return;
+
+        maybeTriggerActivationBanner(prevAccountStatusRef.current, updated.status);
+        prevAccountStatusRef.current = updated.status;
+
+        if (updated.status !== "initializing") return;
+
+        const elapsed = Date.now() - startedAt;
+        if (elapsed > 90_000) return;
+        poll(delayMs);
+      }, delayMs);
+    };
+
+    poll(2000);
+    return () => {
+      cancelled = true;
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [account, refreshAccount, maybeTriggerActivationBanner]);
+
+  // Auto-dismiss activation banner.
+  useEffect(() => {
+    if (!showActivationBanner) return;
+    const t = setTimeout(() => setShowActivationBanner(false), 8000);
+    return () => clearTimeout(t);
+  }, [showActivationBanner]);
 
   useEffect(() => {
     const viewport = scrollRef.current?.querySelector(
@@ -252,6 +332,53 @@ export default function AccountChatPage({
           account={account}
           onAccountUpdate={(a) => setAccount({ ...account, ...a })}
         />
+
+        {showInitializingProgress && (
+          <div className="border-b bg-muted/30">
+            <div className="px-4 py-3 max-w-6xl mx-auto flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">Initializing account…</p>
+                <p className="text-sm text-muted-foreground">
+                  Creating your system prompt and summary.
+                </p>
+              </div>
+              <div className="hidden sm:block w-64">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-full w-1/2 rounded-full bg-primary motion-safe:animate-[progress_1.2s_ease-in-out_infinite]" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showActivationBanner && (
+          <div className="border-b bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100">
+            <div className="px-4 py-3 max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Account is ready</p>
+                <p className="text-sm opacity-90">
+                  Setup is complete. You can now use summary, actions, and normal chat.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowActivationBanner(false);
+                    setActiveView("summary");
+                  }}
+                  className="border-green-200/60 dark:border-green-900"
+                >
+                  View summary
+                </Button>
+                <Button size="sm" onClick={() => setShowActivationBanner(false)}>
+                  Continue
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showMobileToggle && (
           <div className="flex border-b bg-muted/30 px-4 py-1.5 gap-1">

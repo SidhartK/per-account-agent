@@ -8,6 +8,14 @@ import {
 
 export const maxDuration = 60;
 
+function stripAccountReadyBlock(text: string): string {
+  const marker = "---ACCOUNT_READY---";
+  if (!text.includes(marker)) return text;
+  return text
+    .replace(/---ACCOUNT_READY---[\s\S]*?(---END_ACCOUNT_READY---|$)/g, "")
+    .trim();
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -63,11 +71,12 @@ export async function POST(
     system: systemPrompt,
     messages: convertedMessages,
     onFinish: async ({ text }) => {
+      const cleanedText = stripAccountReadyBlock(text);
       await prisma.message.create({
         data: {
           accountId: id,
           role: "assistant",
-          content: text,
+          content: cleanedText,
         },
       });
 

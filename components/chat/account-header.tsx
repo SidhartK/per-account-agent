@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,14 +37,15 @@ export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) 
   const [model, setModel] = useState(account.llmModel);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (settingsOpen && account) {
+  function handleSettingsOpenChange(open: boolean) {
+    setSettingsOpen(open);
+    if (open) {
       const models = AVAILABLE_MODELS[account.llmProvider];
       const validModel = models.includes(account.llmModel) ? account.llmModel : models[0];
       setProvider(account.llmProvider);
       setModel(validModel);
     }
-  }, [settingsOpen, account?.llmProvider, account?.llmModel]);
+  }
 
   function handleProviderChange(value: LlmProvider) {
     setProvider(value);
@@ -162,7 +163,7 @@ export function AccountHeader({ account, onAccountUpdate }: AccountHeaderProps) 
             </Button>
           )}
 
-          <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <Dialog open={settingsOpen} onOpenChange={handleSettingsOpenChange}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon">
                 <Settings className="h-4 w-4" />
