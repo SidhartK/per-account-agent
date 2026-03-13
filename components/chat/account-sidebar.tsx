@@ -15,6 +15,7 @@ import {
 import { Pencil, RefreshCw, Save, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Account } from "@/lib/types";
+import ReactMarkdown from "react-markdown";
 
 interface AccountSidebarProps {
   account: Account;
@@ -125,9 +126,13 @@ export function AccountSidebar({
                 </div>
               </div>
 
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                {account.stateSummary || "No summary yet."}
-              </p>
+              {account.stateSummary ? (
+                <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:text-sm prose-headings:font-semibold prose-headings:my-1.5 prose-strong:font-semibold">
+                  <ReactMarkdown>{account.stateSummary}</ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No summary yet.</p>
+              )}
             </div>
           </div>
         </ScrollArea>

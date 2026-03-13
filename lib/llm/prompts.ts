@@ -65,7 +65,7 @@ ${messagesText || "No recent messages."}
 
 Update the summary using the conversation above. Messages at the end are the most recent and should be weighted more heavily than older messages. The [RECENT] tags mark the freshest context. Prefer recent information when it conflicts with older context.
 
-Be concise: use a few bullet points, not paragraphs.
+Be concise and use markdown formatting. Use bold headings and bullet points — no long paragraphs.
 Prioritize:
 - Why the user seems stuck or blocked
 - Actionable next steps or concrete ways to proceed
@@ -73,12 +73,12 @@ Prioritize:
 
 Drop historical details that are no longer actionable. Keep only context that would help a fresh assistant continue the conversation effectively.
 
-Use this structure:
-- Current blockers / why the user might be stuck
-- Actionable next steps or ways to proceed
-- Key context (only what is still relevant)
+Use this markdown structure:
+**Current Blockers:** (bullet points)
+**Actionable Next Steps:** (bullet points)
+**Key Context:** (bullet points, only what is still relevant)
 
-Output ONLY the updated summary, with bullet points and no preamble or explanation.`;
+Output ONLY the updated summary in markdown, with no preamble or explanation.`;
 }
 
 export function buildNextActionsPrompt(stateSummary: string | null): string {
