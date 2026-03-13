@@ -10,7 +10,7 @@ import { ChatMessage } from "@/components/chat/chat-message";
 import { AccountHeader } from "@/components/chat/account-header";
 import { AccountSidebar } from "@/components/chat/account-sidebar";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { Lightbulb, Send, MessageSquare, FileText } from "lucide-react";
+import { Lightbulb, Send, MessageSquare, FileText, Brain } from "lucide-react";
 import type { Account, AccountWithMessages } from "@/lib/types";
 import type { UIMessage } from "ai";
 
@@ -30,7 +30,9 @@ export default function AccountChatPage({
   const [account, setAccount] = useState<AccountWithMessages | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [actionsLoading, setActionsLoading] = useState(false);
+  const [thinkLoading, setThinkLoading] = useState(false);
   const [summaryRefreshing, setSummaryRefreshing] = useState(false);
+  const [sidebarKey, setSidebarKey] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [activeView, setActiveView] = useState<"chat" | "summary">("chat");
   const [showActivationBanner, setShowActivationBanner] = useState(false);
@@ -177,12 +179,36 @@ export default function AccountChatPage({
           {
             id: crypto.randomUUID(),
             role: "assistant" as const,
-            parts: [{ type: "text" as const, text: `**Suggested Next Actions**\n\n${data.actions}` }],
+            parts: [{ type: "text" as const, text: data.actions }],
+          },
+        ]);
+        // Refresh sidebar to show newly created tasks
+        setSidebarKey((k) => k + 1);
+      }
+    } finally {
+      setActionsLoading(false);
+    }
+  }
+
+  async function handleThinkMore() {
+    setThinkLoading(true);
+    try {
+      const res = await fetch(`/api/accounts/${id}/think`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant" as const,
+            parts: [{ type: "text" as const, text: `**Thinking About This Account**\n\n${data.response}` }],
           },
         ]);
       }
     } finally {
-      setActionsLoading(false);
+      setThinkLoading(false);
     }
   }
 
@@ -285,15 +311,24 @@ export default function AccountChatPage({
       <div className="border-t bg-background p-4">
         <div className="max-w-3xl mx-auto">
           {(account.status === "active" || account.status === "paused") && (
-            <div className="flex gap-2 mb-3">
+            <div className="flex flex-wrap gap-2 mb-3">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleGetActions}
-                disabled={actionsLoading}
+                disabled={actionsLoading || thinkLoading}
               >
                 <Lightbulb className="mr-1 h-3 w-3" />
                 {actionsLoading ? "Generating..." : "Suggest Next Actions"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleThinkMore}
+                disabled={thinkLoading || actionsLoading}
+              >
+                <Brain className="mr-1 h-3 w-3" />
+                {thinkLoading ? "Thinking..." : "Think More About It"}
               </Button>
             </div>
           )}
@@ -406,29 +441,31 @@ export default function AccountChatPage({
         {isMobile ? (
           activeView === "chat" || !showSidebar ? (
             chatPanel
-          ) : (
-            <AccountSidebar
-              account={account}
-              refreshing={summaryRefreshing}
-              onRefreshSummary={handleRefreshSummary}
-              onSaveSummary={handleSaveSummary}
-              className="w-full flex-1 min-h-0"
-            />
-          )
         ) : (
-          chatPanel
-        )}
-      </div>
-
-      {!isMobile && showSidebar && (
-        <AccountSidebar
-          account={account}
-          refreshing={summaryRefreshing}
-          onRefreshSummary={handleRefreshSummary}
-          onSaveSummary={handleSaveSummary}
-          className="w-80 border-l"
-        />
+          <AccountSidebar
+            key={sidebarKey}
+            account={account}
+            refreshing={summaryRefreshing}
+            onRefreshSummary={handleRefreshSummary}
+            onSaveSummary={handleSaveSummary}
+            className="w-full flex-1 min-h-0"
+          />
+        )
+      ) : (
+        chatPanel
       )}
+    </div>
+
+    {!isMobile && showSidebar && (
+      <AccountSidebar
+        key={sidebarKey}
+        account={account}
+        refreshing={summaryRefreshing}
+        onRefreshSummary={handleRefreshSummary}
+        onSaveSummary={handleSaveSummary}
+        className="w-80 border-l"
+      />
+    )}
     </div>
   );
 }

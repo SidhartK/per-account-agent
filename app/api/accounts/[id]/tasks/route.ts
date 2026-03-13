@@ -6,19 +6,18 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get("status");
 
   const account = await prisma.account.findUnique({ where: { id } });
   if (!account) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
-  const { searchParams } = new URL(request.url);
-  const statusParam = searchParams.get("status");
-
   const tasks = await prisma.accountTask.findMany({
     where: {
       accountId: id,
-      ...(statusParam ? { status: statusParam as "pending" | "completed" | "cleared" } : {}),
+      ...(status ? { status: status as "pending" | "completed" | "cleared" } : {}),
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
@@ -38,18 +37,23 @@ export async function POST(
   }
 
   const body = await request.json();
-  const { content, rationale, sortOrder } = body;
+  const { content, rationale } = body;
 
   if (!content || typeof content !== "string") {
     return NextResponse.json({ error: "content is required" }, { status: 400 });
   }
+
+  const maxOrder = await prisma.accountTask.aggregate({
+    where: { accountId: id },
+    _max: { sortOrder: true },
+  });
 
   const task = await prisma.accountTask.create({
     data: {
       accountId: id,
       content,
       rationale: rationale ?? null,
-      sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
+      sortOrder: (maxOrder._max.sortOrder ?? -1) + 1,
     },
   });
 
