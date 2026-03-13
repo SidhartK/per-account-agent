@@ -45,29 +45,40 @@ export function buildSummaryUpdatePrompt(
   currentSummary: string | null,
   recentMessages: { role: string; content: string }[]
 ): string {
+  const recentThreshold = Math.max(recentMessages.length - 5, 0);
   const messagesText = recentMessages
-    .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+    .map((m, index) => {
+      const recencyTag = index >= recentThreshold ? "[RECENT]" : "[OLDER]";
+      return `${recencyTag} ${m.role.toUpperCase()}: ${m.content}`;
+    })
     .join("\n\n");
 
-  return `You are a state summary updater. Your job is to maintain an accurate, structured summary of an account's current state.
+  return `You are a state summary updater. Your job is to maintain a short, highly useful summary of an account's current state.
 
 ${currentSummary ? `## Current Summary\n\n${currentSummary}` : "## No existing summary yet — create one from scratch based on the conversation."}
 
 ## Recent Conversation
 
-${messagesText}
+${messagesText || "No recent messages."}
 
 ## Instructions
 
-Update the state summary to reflect any new information from the recent conversation. Maintain the existing structure but modify, add, or remove items as needed. The summary should capture:
+Update the summary using the conversation above. Messages at the end are the most recent and should be weighted more heavily than older messages. The [RECENT] tags mark the freshest context. Prefer recent information when it conflicts with older context.
 
-- Current status / phase
-- Key goals and their progress
-- Important context and decisions made
-- Immediate next steps or blockers
-- Any deadlines or time-sensitive items
+Be concise: use a few bullet points, not paragraphs.
+Prioritize:
+- Why the user seems stuck or blocked
+- Actionable next steps or concrete ways to proceed
+- Only the key context that is still relevant right now
 
-Keep the summary concise but comprehensive. Output ONLY the updated summary, no preamble or explanation.`;
+Drop historical details that are no longer actionable. Keep only context that would help a fresh assistant continue the conversation effectively.
+
+Use this structure:
+- Current blockers / why the user might be stuck
+- Actionable next steps or ways to proceed
+- Key context (only what is still relevant)
+
+Output ONLY the updated summary, with bullet points and no preamble or explanation.`;
 }
 
 export function buildNextActionsPrompt(stateSummary: string | null): string {
