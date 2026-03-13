@@ -1,6 +1,6 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
 }
 
 datasource db {
@@ -26,21 +26,62 @@ enum MessageRole {
   system
 }
 
-model Account {
-  id           String        @id @default(uuid())
-  name         String
-  status       AccountStatus @default(initializing)
-  llmProvider  LlmProvider   @default(openai)
-  llmModel     String        @default("gpt-4o")
-  systemPrompt String?       @db.Text
-  stateSummary String?       @db.Text
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+enum TaskStatus {
+  pending
+  completed
+  cleared
+}
 
-  messages   Message[]
-  dailyTasks DailyTask[]
+model Account {
+  id                   String        @id @default(uuid())
+  name                 String
+  status               AccountStatus @default(initializing)
+  llmProvider          LlmProvider   @default(openai)
+  llmModel             String        @default("gpt-4o")
+  systemPrompt         String?       @db.Text
+  stateSummary         String?       @db.Text
+  reminderIntervalDays Int?
+  lastReminderAt       DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  messages     Message[]
+  dailyTasks   DailyTask[]
+  accountTasks AccountTask[]
 
   @@index([status])
+}
+
+model DailyTask {
+  id         String   @id @default(uuid())
+  date       DateTime @db.Date
+  accountId  String
+  content    String   @db.Text
+  rationale  String?  @db.Text
+  sortOrder  Int      @default(0)
+  completed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, date])
+  @@index([date])
+}
+
+model AccountTask {
+  id          String     @id @default(uuid())
+  accountId   String
+  content     String     @db.Text
+  rationale   String?    @db.Text
+  status      TaskStatus @default(pending)
+  clearReason String?    @db.Text
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  resolvedAt  DateTime?
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, status])
 }
 
 model Message {
@@ -53,20 +94,4 @@ model Message {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId, createdAt])
-}
-
-model DailyTask {
-  id        String   @id @default(uuid())
-  date      DateTime @db.Date
-  accountId String
-  content   String   @db.Text
-  rationale String?  @db.Text
-  sortOrder Int      @default(0)
-  completed Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-
-  @@index([date])
-  @@index([accountId, date])
 }

@@ -55,3 +55,21 @@ export interface DailyTaskWithAccount extends DailyTask {
 export interface AccountWithMessages extends Account {
   messages: Message[];
 }
+
+export type TaskStatus = "pending" | "completed" | "cleared";
+
+export interface AccountTask {
+  id: string;
+  accountId: string;
+  content: string;
+  rationale: string | null;
+  status: TaskStatus;
+  clearReason: string | null;
+  sortOrder: number;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export interface AccountTaskWithAccount extends AccountTask {
+  account: { id: string; name: string };
+}
