@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { RefreshCw, Pencil, Save, X } from "lucide-react";
+import { Pencil, RefreshCw, Save, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Account } from "@/lib/types";
 
@@ -65,17 +65,8 @@ export function AccountSidebar({
   return (
     <>
       <div className={cn("flex flex-col h-full bg-muted/30", className)}>
-        <div className="px-4 py-3 border-b flex items-center justify-between shrink-0">
+        <div className="px-4 py-3 border-b shrink-0">
           <h2 className="text-sm font-semibold">Account Summary</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRefreshSummary}
-            disabled={refreshing}
-            title="Refresh summary via LLM"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-          </Button>
         </div>
 
         <ScrollArea className="flex-1 min-h-0">
@@ -110,15 +101,28 @@ export function AccountSidebar({
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Summary
                 </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2"
-                  onClick={handleOpen}
-                >
-                  <Pencil className="h-3 w-3 mr-1" />
-                  <span className="text-xs">Edit</span>
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={onRefreshSummary}
+                    disabled={refreshing}
+                    title="Regenerate summary via LLM"
+                  >
+                    <RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+                    <span className="text-xs">{refreshing ? "Regenerating..." : "Regenerate"}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={handleOpen}
+                  >
+                    <Pencil className="h-3 w-3 mr-1" />
+                    <span className="text-xs">Edit</span>
+                  </Button>
+                </div>
               </div>
 
               <p className="text-sm whitespace-pre-wrap leading-relaxed">
