@@ -45,50 +45,142 @@ export function buildSummaryUpdatePrompt(
   currentSummary: string | null,
   recentMessages: { role: string; content: string }[]
 ): string {
+  const recentThreshold = Math.max(recentMessages.length - 5, 0);
   const messagesText = recentMessages
-    .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+    .map((m, index) => {
+      const recencyTag = index >= recentThreshold ? "[RECENT]" : "[OLDER]";
+      return `${recencyTag} ${m.role.toUpperCase()}: ${m.content}`;
+    })
     .join("\n\n");
 
-  return `You are a state summary updater. Your job is to maintain an accurate, structured summary of an account's current state.
+  return `You are a state summary updater. Your job is to maintain a short, highly useful summary of an account's current state.
 
 ${currentSummary ? `## Current Summary\n\n${currentSummary}` : "## No existing summary yet — create one from scratch based on the conversation."}
 
 ## Recent Conversation
 
-${messagesText}
+${messagesText || "No recent messages."}
 
 ## Instructions
 
-Update the state summary to reflect any new information from the recent conversation. Maintain the existing structure but modify, add, or remove items as needed. The summary should capture:
+Update the summary using the conversation above. Messages at the end are the most recent and should be weighted more heavily than older messages. The [RECENT] tags mark the freshest context. Prefer recent information when it conflicts with older context.
 
-- Current status / phase
-- Key goals and their progress
-- Important context and decisions made
-- Immediate next steps or blockers
-- Any deadlines or time-sensitive items
+Be concise and use markdown formatting. Use bold headings and bullet points — no long paragraphs.
+Prioritize:
+- Why the user seems stuck or blocked
+- Actionable next steps or concrete ways to proceed
+- Only the key context that is still relevant right now
 
-Keep the summary concise but comprehensive. Output ONLY the updated summary, no preamble or explanation.`;
+Drop historical details that are no longer actionable. Keep only context that would help a fresh assistant continue the conversation effectively.
+
+Use this markdown structure:
+**Current Blockers:** (bullet points)
+**Actionable Next Steps:** (bullet points)
+**Key Context:** (bullet points, only what is still relevant)
+
+Output ONLY the updated summary in markdown, with no preamble or explanation.`;
 }
 
-export function buildNextActionsPrompt(stateSummary: string | null): string {
+export function buildNextActionsPrompt(
+  stateSummary: string | null,
+  pendingTasks: { content: string; rationale: string | null }[] = []
+): string {
   if (!stateSummary) {
     return "This account has no state summary yet. The most important next action is to have an initial conversation to set up the account context.";
   }
 
-  return `You are a strategic advisor. Based on the current state of this account, suggest the 1-3 most impactful next actions the user should take.
+  const existingTasksText =
+    pendingTasks.length > 0
+      ? `## Current Pending Tasks\n\n${pendingTasks.map((t, i) => `${i + 1}. ${t.content}`).join("\n")}\n\n`
+      : "";
+
+  return `You are a strategic advisor. Based on the current state of this account, suggest 2-3 specific, concrete next tasks the user should work on.
 
 ## Current Account State
 
 ${stateSummary}
 
-## Instructions
+${existingTasksText}## Instructions
 
-For each suggested action:
-1. Be specific and actionable (not vague like "make progress")
-2. Explain briefly why this action matters right now
-3. If relevant, suggest a rough timeframe or deadline
+Suggest 2-3 tasks as a JSON array. Each task should be narrow enough to complete in one sitting. Do not suggest anything already covered by the current pending tasks listed above.
 
-Prioritize actions by impact. Focus on what would move the needle most for this account's goals. Be concise and practical.`;
+For each task, provide:
+- "content": A specific, actionable task (1 sentence, starts with a verb)
+- "rationale": Why this task matters right now (1 sentence)
+
+Output ONLY valid JSON with a "tasks" array. Example:
+{"tasks": [{"content": "Draft an email to Sarah about the Q2 timeline", "rationale": "The project is blocked until she confirms the date."}]}`;
+}
+
+export function buildThinkMorePrompt(
+  stateSummary: string | null,
+  pendingTasks: { content: string; rationale: string | null }[],
+  completedTasks: { content: string }[],
+  clearedTasks: { content: string; clearReason: string | null }[],
+  recentMessages: { role: string; content: string }[]
+): string {
+  const recentThreshold = Math.max(recentMessages.length - 8, 0);
+  const messagesText = recentMessages
+    .map((m, index) => {
+      const recencyTag = index >= recentThreshold ? "[RECENT]" : "[OLDER]";
+      return `${recencyTag} ${m.role.toUpperCase()}: ${m.content}`;
+    })
+    .join("\n\n");
+
+  const pendingText =
+    pendingTasks.length > 0
+      ? pendingTasks.map((t) => `- ${t.content}`).join("\n")
+      : "None";
+
+  const completedText =
+    completedTasks.length > 0
+      ? completedTasks.map((t) => `- ${t.content}`).join("\n")
+      : "None";
+
+  const clearedText =
+    clearedTasks.length > 0
+      ? clearedTasks
+          .map((t) => `- ${t.content}\n  Reason cleared: ${t.clearReason ?? "no reason given"}`)
+          .join("\n")
+      : "None";
+
+  return `You are a strategic thinking partner. The user appears to be stuck on this account. Your job is to help them get unstuck by taking a comprehensive, honest look at where things stand.
+
+## Current Account State Summary
+
+${stateSummary ?? "No summary yet."}
+
+## Pending Tasks (not yet done)
+
+${pendingText}
+
+## Completed Tasks (positive signal — what the user has actually done)
+
+${completedText}
+
+## Cleared Tasks (in-context learning — what the user chose NOT to do, and why)
+
+${clearedText}
+
+## Recent Conversation (messages marked [RECENT] are the most current)
+
+${messagesText || "No recent messages."}
+
+## Your Job
+
+Think carefully about this account. Then respond with:
+
+1. **Where the user seems stuck**: Be specific. What is the actual blocker — is it clarity, motivation, a missing piece of information, or something else?
+
+2. **What the user has shown they want vs. don't want**: Use the completed and cleared task history as evidence. What patterns do you see?
+
+3. **A single clear, narrow goal**: Suggest ONE goal the user should focus on right now. Not a task list — just one concrete thing that, if done, would represent real progress.
+
+4. **Which pending tasks to consider clearing**: If any pending tasks no longer serve the goal, name them and suggest clearing them. Be direct.
+
+5. **1-2 narrower replacement tasks**: If you're suggesting clearing tasks, propose smaller, more achievable alternatives.
+
+Be honest, direct, and specific. Avoid generic advice. The user needs help cutting through confusion, not more options.`;
 }
 
 export function buildDailyTasksPrompt(stateSummary: string | null): string {
